@@ -22,6 +22,7 @@ use vm_memory::{GuestMemoryAtomic, GuestMemoryMmap};
 
 use i2c::{I2cDevice, I2cMap, I2cReq, MAX_I2C_VDEV};
 use once_cell::sync::Lazy;
+use std::io::Write;
 use vhu_i2c::VhostUserI2cBackend;
 
 mod i2c;
@@ -56,7 +57,7 @@ const NUNCHUK_I2C_ADDRESS: u16 = 0x52;
 const NUNCHUK_TRANSFER_LENGTH: u16 = 6;
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
-    use std::{cmp::min, io::Write};
+    use std::cmp::min;
     let mut buf = std::io::BufWriter::new(tmp);
     for y in 0..buf_y {
         for x in 0..buf_x {
@@ -82,8 +83,44 @@ impl Nunchuk {
             return Err(i2c::Error::ClientAddressInvalid);
         }
 
-        println!("{:?}", request);
-        Ok(())
+        match request.flags {
+            // Write
+            0 => {
+                if request.len > 2 {
+                    Err(i2c::Error::I2cTransferInvalid(request.len.into()))
+                } else {
+                    Ok(())
+                }
+            }
+            // Read
+            1 => {
+                if request.len != 6 {
+                    return Err(i2c::Error::I2cTransferInvalid(
+                        NUNCHUK_TRANSFER_LENGTH.into(),
+                    ));
+                }
+
+                request
+                    .buf
+                    .as_mut_slice()
+                    .write_all(&self.serialize_registers())
+                    .map_err(|_| i2c::Error::StdIoErr)
+            }
+            _ => Err(i2c::Error::StdIoErr),
+        }
+    }
+
+    fn serialize_registers(&self) -> [u8; 6] {
+        let registers = self.registers.read().unwrap();
+        let mut last_byte: u8 = 0;
+        if !registers.z {
+            last_byte |= 1;
+        }
+        if !registers.c {
+            last_byte |= 1 << 1;
+        }
+
+        [0, 0, 0, 0, 0, last_byte]
     }
 }
 
@@ -118,7 +155,8 @@ impl i2c::I2cDevice for Nunchuk {
     }
 
     // Corresponds to the I2C_SLAVE ioctl call.
-    fn slave(&self, _: u64) -> Result<(), i2c::Error> {
+    fn slave(&self, address: u64) -> Result<(), i2c::Error> {
+        dbg!(address);
         Ok(())
     }
 
