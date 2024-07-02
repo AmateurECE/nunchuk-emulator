@@ -76,20 +76,23 @@ impl Nunchuk {
         }
 
         match request.flags {
-            // Write
+            // Attempt to write more than two bytes should fail
             0 if request.len > 2 => Err(i2c::Error::I2cTransferInvalid(request.len.into())),
+            // Otherwise, writes are ignored (successfully)
             0 => Ok(()),
-            // Read
-            1 if request.len == 6 => request
+            // Read (in the normal case)
+            1 if request.len == NUNCHUK_TRANSFER_LENGTH => request
                 .buf
                 .as_mut_slice()
                 .write_all(&self.serialize_registers())
                 .map_err(|_| i2c::Error::StdIoErr),
+            // SMBUS reads, which may happen as a result of i2cdetect
             1 if request.len == 1 => request
                 .buf
                 .as_mut_slice()
                 .write_all(&[0xff])
                 .map_err(|_| i2c::Error::StdIoErr),
+            // Other read operations fail.
             1 => Err(i2c::Error::I2cTransferInvalid(
                 NUNCHUK_TRANSFER_LENGTH.into(),
             )),
@@ -355,12 +358,6 @@ where
 
         handles.push(handle);
     }
-
-    // for handle in handles {
-    //     handle
-    //         .join()
-    //         .map_err(|_| EmulatorError::FailedJoiningThreads)?;
-    // }
 
     Ok(())
 }
