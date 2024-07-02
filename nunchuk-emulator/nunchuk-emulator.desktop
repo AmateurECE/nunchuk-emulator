@@ -1,0 +1,7 @@
+[Desktop Entry]
+Version=1.0
+Name=Nunchuk Emulator
+
+Exec=nunchuk-emulator
+Type=Application
+Icon=input-keyboard
