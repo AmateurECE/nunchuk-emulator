@@ -15,7 +15,7 @@ use libc::{c_ulong, ioctl};
 use thiserror::Error as ThisError;
 use vmm_sys_util::errno::Error as IoError;
 
-use super::AdapterConfig;
+use crate::backend::AdapterConfig;
 
 // The type of the `req` parameter is different for the `musl` library. This will enable
 // successful build for other non-musl libraries.
