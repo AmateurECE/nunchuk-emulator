@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::env;
 
 use backend::{Button, ButtonEvent, ButtonState, I2cArgs, Nunchuk};
 use gtk::prelude::*;
@@ -114,8 +115,10 @@ impl ApplicationImpl for NunchukEmulator {
 }
 
 fn main() -> glib::ExitCode {
+    let xdg_runtime_dir = env::var("XDG_RUNTIME_DIR").unwrap();
+    let socket_path = format!("{xdg_runtime_dir}/vhost-user-i2c-1.sock");
     let args = I2cArgs {
-        socket_path: "/run/user/1000/vhost-user-i2c-1.sock".to_string(),
+        socket_path,
         socket_count: 1,
         // NOTE: 82d == 52h
         device_list: "i2c-1:82".to_string(),
